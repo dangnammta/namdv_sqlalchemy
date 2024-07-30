@@ -13,7 +13,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
 from sqlalchemy.orm.exc import UnmappedClassError
 from sqlalchemy.orm import Session as SessionBase
-from sqlalchemy.orm.decl_api import DeclarativeMeta
+from sqlalchemy.ext.declarative import DeclarativeMeta
 
 
 from .model import Model, DefaultMeta
@@ -59,9 +59,9 @@ def _include_sqlalchemy(obj, cls):
             if not key.startswith('_') and not hasattr(obj, key):
                 setattr(obj, key, getattr(module, key))
     obj.Table = _make_table(obj)
-    obj.relationship = _wrap_with_default_query_class(obj.relationship, cls)
-    obj.relation = _wrap_with_default_query_class(obj.relation, cls)
-    obj.dynamic_loader = _wrap_with_default_query_class(obj.dynamic_loader, cls)
+    obj.relationship = _wrap_with_default_query_class(orm.relationship, cls)
+    obj.relation = _wrap_with_default_query_class(orm.relationship, cls)
+    obj.dynamic_loader = _wrap_with_default_query_class(orm.dynamic_loader, cls)
     obj.event = event
 
 class SignallingSession(SessionBase):
