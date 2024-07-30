@@ -15,6 +15,7 @@ from sqlalchemy.orm.exc import UnmappedClassError
 from sqlalchemy.orm import Session as SessionBase
 from sqlalchemy.orm.decl_api import DeclarativeMeta
 
+
 from .model import Model, DefaultMeta
 
 __version__ = '0.1.0'
@@ -49,9 +50,13 @@ def _wrap_with_default_query_class(fn, cls):
     return newfn
 
 def _include_sqlalchemy(obj, cls):
+    # for module in sqlalchemy, sqlalchemy.orm:
+    #     for key in module.__all__:
+    #         if not hasattr(obj, key):
+    #             setattr(obj, key, getattr(module, key))
     for module in sqlalchemy, sqlalchemy.orm:
-        for key in module.__all__:
-            if not hasattr(obj, key):
+        for key in dir(module):
+            if not key.startswith('_') and not hasattr(obj, key):
                 setattr(obj, key, getattr(module, key))
     obj.Table = _make_table(obj)
     obj.relationship = _wrap_with_default_query_class(obj.relationship, cls)
