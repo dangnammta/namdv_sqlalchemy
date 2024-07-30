@@ -13,6 +13,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
 from sqlalchemy.orm.exc import UnmappedClassError
 from sqlalchemy.orm import Session as SessionBase
+from sqlalchemy.orm.decl_api import DeclarativeMeta
 
 from .model import Model, DefaultMeta
 
