@@ -14,6 +14,8 @@ from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
 from sqlalchemy.orm.exc import UnmappedClassError
 from sqlalchemy.orm import Session as SessionBase
 from sqlalchemy.ext.declarative import DeclarativeMeta
+import threading  # Import threading for get_ident
+
 
 
 from .model import Model, DefaultMeta
@@ -54,9 +56,12 @@ def _include_sqlalchemy(obj, cls):
     #     for key in module.__all__:
     #         if not hasattr(obj, key):
     #             setattr(obj, key, getattr(module, key))
+    exclude_keys = {'engine'}
     for module in sqlalchemy, sqlalchemy.orm:
         for key in dir(module):
-            if not key.startswith('_') and not hasattr(obj, key):
+            if key.startswith('_') or key in exclude_keys:
+                continue
+            if not hasattr(obj, key):
                 setattr(obj, key, getattr(module, key))
     obj.Table = _make_table(obj)
     obj.relationship = _wrap_with_default_query_class(orm.relationship, cls)
@@ -71,14 +76,14 @@ class SignallingSession(SessionBase):
         binds = options.pop('binds', db.get_binds(app))
         SessionBase.__init__(self, autocommit=autocommit, autoflush=autoflush, bind=bind, binds=binds)
 
-    def get_bind(self, mapper=None, clause=None):
+    def get_bind(self, mapper=None, clause=None, bind=None, **kw):
         if mapper is not None:
             info = getattr(mapper.persist_selectable, 'info', {})
             bind_key = info.get('bind_key')
             if bind_key is not None:
                 state = get_state(self.app)
                 return state.db.get_engine(self.app, bind=bind_key)
-        return SessionBase.get_bind(self, mapper, clause)
+        return SessionBase.get_bind(self, bind)
 
 class BaseQuery(orm.Query):
     pass
@@ -155,13 +160,37 @@ class SQLAlchemy(object):
         return self.Model.metadata
 
     def create_scoped_session(self, options=None):
+        # if options is None:
+        #     options = {}
+        # scopefunc = options.pop('scopefunc', asyncio.current_task)
+        # options['query_cls'] = options['query_cls'] if 'query_cls' in options else self.Query
+        # return scoped_session(self.create_session(options), scopefunc=scopefunc)
         if options is None:
             options = {}
-        scopefunc = options.pop('scopefunc', asyncio.current_task)
+        # Custom scope function to ensure an event loop is available
+        def scopefunc():
+            task = asyncio.Task.current_task()
+            if task:
+                return task
+            else:
+                return threading.get_ident()
+
+            # try:
+            #     # Try to get the current running task (which implies there's an event loop)
+            #     return await asyncio.Task.current_task()
+            # except RuntimeError:
+            #     # If no event loop is running, create a new one
+            #     if not asyncio.get_event_loop().is_running():
+            #         loop = asyncio.new_event_loop()
+            #         asyncio.set_event_loop(loop)
+            #     return await asyncio.Task.current_task()
+        options['scopefunc'] = options.get('scopefunc', scopefunc)
         options['query_cls'] = options['query_cls'] if 'query_cls' in options else self.Query
-        return scoped_session(self.create_session(options), scopefunc=scopefunc)
+        return orm.scoped_session(self.create_session(options), scopefunc=scopefunc)
+
 
     def create_session(self, options):
+        print("create session options namdv:" + str(options))
         return sessionmaker(class_=SignallingSession, db=self, **options)
 
     def make_declarative_base(self, model, metadata=None):
