@@ -190,7 +190,6 @@ class SQLAlchemy(object):
 
 
     def create_session(self, options):
-        print("create session options namdv:" + str(options))
         return sessionmaker(class_=SignallingSession, db=self, **options)
 
     def make_declarative_base(self, model, metadata=None):
