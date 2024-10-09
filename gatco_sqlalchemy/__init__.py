@@ -169,7 +169,7 @@ class SQLAlchemy(object):
             options = {}
         # Custom scope function to ensure an event loop is available
         def scopefunc():
-            task = asyncio.Task.current_task()
+            task = asyncio.current_task()
             if task:
                 return task
             else:
