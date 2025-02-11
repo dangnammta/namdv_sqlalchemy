@@ -20,7 +20,8 @@ import threading  # Import threading for get_ident
 
 from .model import Model, DefaultMeta
 
-__version__ = '0.1.0'
+__version__ = '1.0'
+__python_version__ = sys.version_info
 
 def itervalues(d):
     return iter(d.values())
@@ -169,11 +170,11 @@ class SQLAlchemy(object):
             options = {}
         # Custom scope function to ensure an event loop is available
         def scopefunc():
-            task = asyncio.current_task()
-            if task:
-                return task
+            if __python_version__ >= (3, 9):
+                return asyncio.current_task()
             else:
-                return threading.get_ident()
+                task = asyncio.Task.current_task()
+                return task if task else threading.get_ident()
 
             # try:
             #     # Try to get the current running task (which implies there's an event loop)
